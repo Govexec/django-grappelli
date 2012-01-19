@@ -1,3 +1,4 @@
+CHAR_MAX_LENGTH = 100;
 // Handles related-objects functionality: lookup link for raw_id_fields
 // and Add Another links.
 
@@ -139,3 +140,219 @@ function dismissAddAnotherPopup(win, newId, newRepr) {
     }
     win.close();
 }
+
+
+
+
+
+(function($) {
+    function RelatedLookup(obj) {
+        // check if val isn't empty string or the same value as before
+        if (obj.val() == obj.data('old_val')) return;
+        obj.data('old_val', obj.val());
+        
+        var link = obj.next();
+        href = link.attr('href');
+        if (!href) return;
+        var spliturl = href.split('/');
+        var app_label = spliturl[spliturl.length-3];
+        var model_name= spliturl[spliturl.length-2];
+
+        var text = obj.next().next();
+        if (obj.val() == "") {
+            text.text('');
+            return;
+        }
+        
+        text.text('loading ...');
+        
+        // get object
+        $.get('/grappelli/lookup/related/', {
+            object_id: obj.val(),
+            app_label: app_label,
+            model_name: model_name
+        }, function(data) {
+            var item = data;
+            text.text('');
+            if (item) {
+            	label = eval(item)[0]['label'];
+                if (label.length > CHAR_MAX_LENGTH) {
+                    text.text(label.substr(0, CHAR_MAX_LENGTH) + " ...");
+                } else {
+                    text.text(label);
+                }
+                
+            }
+        });
+    }
+    
+    function M2MLookup(obj) {
+        // check if val isn't empty string or the same value as before
+        if (obj.val() == obj.data('old_val')) return;
+        obj.data('old_val', obj.val());
+        
+        var link = obj.next();
+        var spliturl = link.attr('href').split('/');
+        var app_label = spliturl[spliturl.length-3];
+        var model_name= spliturl[spliturl.length-2];
+
+        var text = obj.next().next();
+        if (obj.val() == "") {
+            text.text('');
+            return;
+        }
+        
+        text.text('loading ...');
+        
+        // get object
+        $.get('/grappelli/lookup/m2m/', {
+            object_id: obj.val(),
+            app_label: app_label,
+            model_name: model_name
+        }, function(data) {
+            var item = data;
+            text.text('');
+            if (item) {
+            	label = eval(item)[0]['label'];
+                if (label.length > CHAR_MAX_LENGTH) {
+                    text.text(decodeURI(label.substr(0, CHAR_MAX_LENGTH) + " ..."));
+                } else {
+                    text.text(decodeURI(label));
+                }
+            }
+        });
+    }
+    
+    function GenericLookup(obj, force_update) {
+        // check if val isn't empty string or the same value as before
+        if (!force_update && obj.val() == obj.data('old_val')) return;
+        obj.data('old_val', obj.val());
+        
+        var text = obj.next().next();
+        if (obj.val() == "") {
+            text.text("");
+            return;
+        }
+        text.text('loading ...');
+        
+        var link = obj.next();
+        if (link.length == 0) return;
+        href = link.attr('href');
+        if (!href) return;
+        var spliturl = href.split('/');
+        var app_label = spliturl[spliturl.length-3];
+        var model_name= spliturl[spliturl.length-2];
+        
+        // get object
+        $.get('/grappelli/lookup/related/', {object_id: obj.val(), app_label: app_label, model_name: model_name}, function(data) {
+            var item = data;
+            text.text('');
+            if (item) {
+            	label = eval(item)[0]['label'];
+                if (label.length > CHAR_MAX_LENGTH) {
+                    text.text(decodeURI(label.substr(0, CHAR_MAX_LENGTH) + " ..."));
+                } else {
+                    text.text(decodeURI(label));
+                }
+            }
+        });
+    }
+    
+    function RelatedHandler(obj) {
+        // related lookup handler
+        obj.bind("change focus keyup blur", function() {
+            RelatedLookup($(this));
+        });
+    }
+    
+    function M2MHandler(obj) {
+        // related lookup handler
+        obj.bind("change focus keyup blur", function() {
+            M2MLookup($(this));
+        });
+    }
+    
+    function InitObjectID(obj) {
+        obj.each(function() {
+            var ct = $(this).closest('div[class*="object_id"]').prev().find(':input[name*="content_type"]').val();
+            if (ct) {
+                var lookupLink = $('<a class="related-lookup"></a>');
+                lookupLink.attr('id', 'lookup_'+this.id);
+                lookupLink.attr('href', ADMIN_URL + MODEL_URL_ARRAY[ct].app + "/" + MODEL_URL_ARRAY[ct].model + '/?t=id');
+                lookupLink.attr('onClick', 'return showRelatedObjectLookupPopup(this);');
+                var lookupText = '<strong>&nbsp;</strong>';
+                $(this).after(lookupText).after(lookupLink);
+                if ($(this).val() != "") {
+                    lookupText = GenericLookup($(this));
+                }
+            }
+        });
+    }
+    
+    function InitContentType(obj) {
+      if (obj.attr('name') && obj.attr('name').indexOf('content_type-object_id') !== -1) {
+        // This is a generic stacked inlineadmin or tabularadmin
+        return;
+      }
+        obj.bind("change", function() {
+            var node = $(this).closest('div[class*="content_type"]').next(),
+                lookupLink = node.find('a.related-lookup'),
+                obj_id = node.find('input[name*="object_id"]');
+            if ($(this).val()) {
+                var href = ADMIN_URL + MODEL_URL_ARRAY[$(this).val()].app + "/" + MODEL_URL_ARRAY[$(this).val()].model + '/?t=id';
+                if (lookupLink.attr('href')) {
+                    lookupLink.attr('href', href);
+                } else {
+                    lookupLink = $('<a class="related-lookup"></a>');
+                    lookupLink.attr('id', 'lookup_' + obj_id.attr('id'));
+                    lookupLink.attr('href', ADMIN_URL + MODEL_URL_ARRAY[$(this).val()].app + "/" + MODEL_URL_ARRAY[$(this).val()].model + '/?t=id');
+                    lookupLink.attr('onClick', 'return showRelatedObjectLookupPopup(this);');
+                    var lookupText = '<strong>&nbsp;</strong>';
+                    obj_id.after(lookupText).after(lookupLink);
+                }
+                GenericLookup(obj_id, true);
+            } else {
+                obj_id.val('');
+                lookupLink.remove();
+                node.find('strong').remove();
+            }
+        });
+    }
+    
+    function GenericHandler(obj) {
+        // related lookup handler
+        obj.bind("change focus keyup", function() {
+            GenericLookup($(this));
+        });
+    }
+    $(document).ready(function() {
+        // change related-lookups in order to get the right URL.
+        $('a.related-lookup').each(function() {
+           href = $(this).attr('href').replace('../../../', ADMIN_URL);
+           $(this).attr('href', href);
+        });
+        
+        // related lookup setup
+        $("input.vForeignKeyRawIdAdminField").each(function() {
+            // insert empty text-elements after all empty foreignkeys
+            if ($(this).val() == "") {
+                $(this).next().after('&nbsp;<strong></strong>');
+            }
+        });
+        
+        // m2m lookup setup
+        $("input.vManyToManyRawIdAdminField").each(function() {
+            // insert empty text-elements after all m2m fields
+            $(this).next().after('&nbsp;<strong>&nbsp;</strong>');
+            M2MLookup($(this));
+        });
+        
+        RelatedHandler($("input.vForeignKeyRawIdAdminField"));
+        M2MHandler($("input.vManyToManyRawIdAdminField"));
+        
+        InitObjectID($('input[name*="object_id"]'));
+        InitContentType($(':input[name*="content_type"]'));
+        GenericHandler($('input[name*="object_id"]'));
+    });
+})(django.jQuery);
+
