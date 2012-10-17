@@ -1,4 +1,9 @@
 *.pyc
 docs/_build/
 .DS_Store
-django_grappelli.egg-info/
+dist/*
+django_grappelli.egg-info/*
+grappelli/compass/.sass-cache/
+fabfile.py
+.sass-cache
+
