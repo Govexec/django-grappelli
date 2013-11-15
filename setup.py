@@ -1,13 +1,12 @@
 import os
-import codecs
 from setuptools import setup, find_packages
 
 def read(fname):
-    return codecs.open(os.path.join(os.path.dirname(__file__), fname)).read()
+    return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 setup(
     name='django-grappelli',
-    version='2.3.6',
+    version='2.4.4',
     description='A jazzy skin for the Django Admin-Interface.',
     long_description = read('README.rst'),
     author='Patrick Kranzlmueller, Axel Swoboda (vonautomatisch)',

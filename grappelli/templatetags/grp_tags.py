@@ -1,16 +1,23 @@
 # coding: utf-8
 
 # python imports
+from functools import wraps
+
 import re
+
+# try to use json (2.6+) but stay compatible with 2.5.*
+try:
+    import json
+except ImportError:
+    from django.utils import simplejson as json
 
 # django imports
 from django import template
 from django.contrib.contenttypes.models import ContentType
 from django.utils.formats import get_format
 from django.utils.safestring import mark_safe
-from django.db import models
-from django.contrib import admin
-from django.conf import settings
+from django.template.loader import get_template
+from django.template.context import Context
 
 # grappelli imports
 from grappelli.settings import *
@@ -20,17 +27,17 @@ register = template.Library()
 
 # GENERIC OBJECTS
 class do_get_generic_objects(template.Node):
-    
     def __init__(self):
         pass
-    
-    def render(self, context):
-        return_string = "{"
-        for c in ContentType.objects.all().order_by('id'):
-            return_string = "%s%d: {pk: %s, app: '%s', model: '%s'}," % (return_string, c.id, c.id, c.app_label, c.model)
-        return_string = "%s}" % return_string[:-1]
-        return return_string
 
+    def render(self, context):
+        objects = {}
+        for c in ContentType.objects.all().order_by('id'):
+            objects[c.id] = {'pk': c.id, 'app': c.app_label, 'model': c.model}
+        return json.dumps(objects)
+
+
+@register.tag
 def get_content_types(parser, token):
     """
     Returns a list of installed applications and models.
@@ -38,88 +45,50 @@ def get_content_types(parser, token):
     """
     tokens = token.contents.split()
     return do_get_generic_objects()
-register.tag('get_content_types', get_content_types)
 
 
 # ADMIN_TITLE
+@register.simple_tag
 def get_admin_title():
     """
     Returns the Title for the Admin-Interface.
     """
     return ADMIN_TITLE
-register.simple_tag(get_admin_title)
 
 
 # RETURNS CURRENT LANGUAGE
+@register.simple_tag
 def get_lang():
     return get_language()
-register.simple_tag(get_lang)
 
 
 # ADMIN_URL
+@register.simple_tag
 def get_admin_url():
     """
     Returns the URL for the Admin-Interface.
     """
     return ADMIN_URL
-register.simple_tag(get_admin_url)
 
 
+@register.simple_tag
 def get_date_format():
     return get_format('DATE_INPUT_FORMATS')[0]
-register.simple_tag(get_date_format)
 
 
+@register.simple_tag
 def get_time_format():
     return get_format('TIME_INPUT_FORMATS')[0]
-register.simple_tag(get_time_format)
 
 
+@register.simple_tag
 def get_datetime_format():
     return get_format('DATETIME_INPUT_FORMATS')[0]
-register.simple_tag(get_datetime_format)
 
 
+@register.simple_tag
 def grappelli_admin_title():
     return ADMIN_TITLE
-register.simple_tag(grappelli_admin_title)
-
-
-# SEARCH FIELDS VERBOSE
-class GetSearchFields(template.Node):
-    
-    def __init__(self, opts, var_name):
-        self.opts = template.Variable(opts)
-        self.var_name = var_name
-    
-    def render(self, context):
-        opts = str(self.opts.resolve(context)).split('.')
-        model = models.get_model(opts[0], opts[1])
-        try:
-            field_list = admin.site._registry[model].search_fields_verbose
-        except:
-            field_list = ""
-        
-        context[self.var_name] = ", ".join(field_list)
-        return ""
-
-
-def do_get_search_fields_verbose(parser, token):
-    """
-    Get search_fields_verbose in order to display on the Changelist.
-    """
-    
-    try:
-        tag, arg = token.contents.split(None, 1)
-    except:
-        raise template.TemplateSyntaxError, "%s tag requires arguments" % token.contents.split()[0]
-    m = re.search(r'(.*?) as (\w+)', arg)
-    if not m:
-        raise template.TemplateSyntaxError, "%r tag had invalid arguments" % tag
-    opts, var_name = m.groups()
-    return GetSearchFields(opts, var_name)
-
-register.tag('get_search_fields_verbose', do_get_search_fields_verbose)
 
 
 @register.filter
@@ -141,7 +110,6 @@ def formsetsort(formset, arg):
     """
     Takes a list of formset dicts, returns that list sorted by the sortable field.
     """
-    
     if arg:
         sorted_list = []
         for item in formset:
@@ -161,72 +129,74 @@ def formsetsort(formset, arg):
 
 # RELATED LOOKUPS
 
+def safe_json_else_list_tag(f):
+    """
+    Decorator. Registers function as a simple_tag.
+    Try: Return value of the decorated function marked safe and json encoded.
+    Except: Return []
+    """
+    @wraps(f)
+    def inner(model_admin):
+        try:
+            return mark_safe(json.dumps(f(model_admin)))
+        except:
+            return []
+    return register.simple_tag(inner)
+
+
+@safe_json_else_list_tag
 def get_related_lookup_fields_fk(model_admin):
-    try:
-        value = model_admin.related_lookup_fields.get("fk", [])
-        value = mark_safe(list(value))
-    except:
-        value = []
-    return value
-
-register.simple_tag(get_related_lookup_fields_fk)
+    return model_admin.related_lookup_fields.get("fk", [])
 
 
+@safe_json_else_list_tag
 def get_related_lookup_fields_m2m(model_admin):
-    try:
-        value = model_admin.related_lookup_fields.get("m2m", [])
-        value = mark_safe(list(value))
-    except:
-        value = []
-    return value
-
-register.simple_tag(get_related_lookup_fields_m2m)
+    return model_admin.related_lookup_fields.get("m2m", [])
 
 
+@safe_json_else_list_tag
 def get_related_lookup_fields_generic(model_admin):
-    try:
-        value = model_admin.related_lookup_fields.get("generic", [])
-        value = mark_safe(list(value))
-    except:
-        value = []
-    return value
-
-register.simple_tag(get_related_lookup_fields_generic)
+    return model_admin.related_lookup_fields.get("generic", [])
 
 
 # AUTOCOMPLETES
 
+@safe_json_else_list_tag
 def get_autocomplete_lookup_fields_fk(model_admin):
-    try:
-        value = model_admin.autocomplete_lookup_fields.get("fk", [])
-        value = mark_safe(list(value))
-    except:
-        value = []
-    return value
-
-register.simple_tag(get_autocomplete_lookup_fields_fk)
+    return model_admin.autocomplete_lookup_fields.get("fk", [])
 
 
+@safe_json_else_list_tag
 def get_autocomplete_lookup_fields_m2m(model_admin):
-    try:
-        value = model_admin.autocomplete_lookup_fields.get("m2m", [])
-        value = mark_safe(list(value))
-    except:
-        value = []
-    return value
-
-register.simple_tag(get_autocomplete_lookup_fields_m2m)
+    return model_admin.autocomplete_lookup_fields.get("m2m", [])
 
 
+@safe_json_else_list_tag
 def get_autocomplete_lookup_fields_generic(model_admin):
+    return model_admin.autocomplete_lookup_fields.get("generic", [])
+
+
+# SORTABLE EXCLUDES
+@safe_json_else_list_tag
+def get_sortable_excludes(model_admin):
+    return model_admin.sortable_excludes
+
+
+@register.filter
+def prettylabel(value):
+    return mark_safe(value.replace(":</label>", "</label>"))
+
+
+# CUSTOM ADMIN LIST FILTER
+# WITH TEMPLATE DEFINITION
+@register.simple_tag
+def admin_list_filter(cl, spec):
     try:
-        value = model_admin.autocomplete_lookup_fields.get("generic", [])
-        value = mark_safe(list(value))
+        tpl = get_template(cl.model_admin.change_list_filter_template)
     except:
-        value = []
-    return value
-
-register.simple_tag(get_autocomplete_lookup_fields_generic)
-
-
-
+        tpl = get_template(spec.template)
+    return tpl.render(Context({
+        'title': spec.title,
+        'choices': list(spec.choices(cl)),
+        'spec': spec,
+    }))
