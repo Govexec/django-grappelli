@@ -14,6 +14,8 @@
                 $this.parent().find('a.related-lookup').after(options.placeholder);
                 // change lookup class
                 $this.next().addClass("grp-m2m");
+                // add related class
+                $this.addClass('grp-has-related-lookup');
                 // lookup
                 lookup_id($this, options); // lookup when loading page
                 $this.bind("change focus keyup", function() { // id-handler
@@ -41,7 +43,7 @@
             model_name: grappelli.get_model_name(elem)
         }, function(data) {
             values = $.map(data, function (a) { return '<span class="grp-placeholder-label">' + a.label + '</span>'; });
-            if (values == "") {
+            if (values === "") {
                 elem.parent().find('.grp-placeholder-related-m2m').hide();
             } else {
                 elem.parent().find('.grp-placeholder-related-m2m').show();

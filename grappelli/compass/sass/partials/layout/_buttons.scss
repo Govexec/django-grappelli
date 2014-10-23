@@ -206,10 +206,11 @@ body.tinyMCE input[name="href"] + div a {
     .grp-errors & {
         display: none;
     }
+    .grp-separator {
+        @include grp-separator;
+    }
 }
-.grp-separator {
-    @include grp-separator;
-}
+
 
 
 /*  Filebrowser, Related Lookup, M2M, FK, Related Remove ......................................... */
@@ -230,9 +231,12 @@ a.related-lookup + strong {
 }
 
 a.related-lookup.m2m, 
-.grp-autocomplete-wrapper-m2m a.related-lookup, 
-.grp-autocomplete-wrapper-fk a.related-lookup {
+.grp-autocomplete-wrapper-m2m a.related-lookup {
     @include icons-sprite(related-lookup-m2m);
+    @include grp-button-states(blue, grey);
+}
+.grp-autocomplete-wrapper-fk a.related-lookup {
+    @include icons-sprite(related-lookup);
     @include grp-button-states(blue, grey);
 }
 

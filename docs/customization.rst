@@ -13,14 +13,32 @@ While |grappelli| is mainly about the look & feel of the admin interface, it als
 Available Settings
 ------------------
 
+.. versionadded:: 2.4.8
+    Added setting GRAPPELLI_SWITCH_USER, GRAPPELLI_SWITCH_USER_ORIGINAL, GRAPPELLI_SWITCH_USER_TARGET
+.. versionadded:: 2.4.6
+    Added setting GRAPPELLI_AUTOCOMPLETE_SEARCH_FIELDS
 .. versionadded:: 2.4.1
-    Added setting AUTOCOMPLETE_LIMIT
+    Added setting GRAPPELLI_AUTOCOMPLETE_LIMIT
 
 ``GRAPPELLI_ADMIN_TITLE``
     The Site Title of your admin interface. Change this instead of changing index.html
 
-``AUTOCOMPLETE_LIMIT``
+``GRAPPELLI_AUTOCOMPLETE_LIMIT``
     Number of items to show with autocomplete drop–downs.
+
+``GRAPPELLI_AUTOCOMPLETE_SEARCH_FIELDS``
+    A dictionary containing search patterns for models you cannot (or should not) alter.
+
+``GRAPPELLI_SWITCH_USER``
+    Set to ``True`` if you want to activate the switch user functionality.
+
+``GRAPPELLI_SWITCH_USER_ORIGINAL``
+    A function which defines if a User is able to switch to another User (returns either ``True`` or ``False``).
+    Defaults to all superusers.
+
+``GRAPPELLI_SWITCH_USER_TARGET``
+    A function which defines if a User is a valid switch target (returns either ``True`` or ``False``).
+    Defaults to all staff users, excluding superusers.
 
 .. _customizationcollapsibles:
 
@@ -30,7 +48,7 @@ Collapsibles
 .. versionchanged:: 2.4.0
     Added namespace ``grp-``.
 
-Use the ``classes`` property in order to define collapsibles for a `ModelAdmin <http://docs.djangoproject.com/en/dev/ref/contrib/admin/#modeladmin-objects>`_ or an `InlineModelAdmin <http://docs.djangoproject.com/en/dev/ref/contrib/admin/#inlinemodeladmin-objects>`_. Possible values are ``grp-collapse grp-open`` and ``grp-collapse grp-closed``.
+Use the ``classes`` property in order to define collapsibles for a `ModelAdmin <http://docs.djangoproject.com/en/1.5/ref/contrib/admin/#modeladmin-objects>`_ or an `InlineModelAdmin <http://docs.djangoproject.com/en/1.5/ref/contrib/admin/#inlinemodeladmin-objects>`_. Possible values are ``grp-collapse grp-open`` and ``grp-collapse grp-closed``.
 
 A ModelAdmin example::
 
@@ -49,12 +67,11 @@ A ModelAdmin example::
             }),
         )
 
-With `StackedInlines <https://docs.djangoproject.com/en/dev/ref/contrib/admin/#django.contrib.admin.StackedInline>`_, an additional property ``inline_classes`` is available to define the default collapsible state of inline items (as opposed to the inline group)::
+With `StackedInlines <https://docs.djangoproject.com/en/1.5/ref/contrib/admin/#django.contrib.admin.StackedInline>`_, an additional property ``inline_classes`` is available to define the default collapsible state of inline items (as opposed to the inline group)::
 
     class NavigationItemInline(admin.StackedInline):
         classes = ('grp-collapse grp-open',)
         inline_classes = ('grp-collapse grp-open',)
-
 
 .. _customizationinlinessortables:
 
@@ -98,12 +115,35 @@ You may want to define ``sortable_excludes`` (either list or tuple) in order to 
         # define sortable_excludes
         sortable_excludes = ("field_1", "field_2",)
 
+.. _customizationrearrangeinlines:
+
+Rearrange Inlines
+-----------------
+
+.. versionadded:: 2.4.6
+
+Sometimes it might make sense to not show inlines at the bottom of the page/form, but somewhere in–between. In order to achieve this, you need to define a placeholder with your fields/fieldsets in admin.py::
+
+    ("Some Fieldset", {
+        "classes": ("grp-collapse grp-open",),
+        "fields": ("whatever",)
+    }),
+    ("Image Inlines", {"classes": ("placeholder images-group",), "fields" : ()}),
+    ("Another Fieldset", {
+        "classes": ("grp-collapse grp-open",),
+        "fields": ("whatever",)
+    }),
+
+    inlines = [ImageInlines]
+
+The two classes for the placeholder are important. First, you need a class ``placeholder``. The second class needs to match the ``id`` of the inline–group.
+
 .. _customizationrelatedlookups:
 
 Related Lookups
 ---------------
 
-.. versionchanged:: 2.3.1
+.. versionchanged:: 2.3
     Added ``related_lookup_fields``.
 
 With Grappelli, you're able to add the representation of an object beneath the input field (for fk– and m2m–fields)::
@@ -152,10 +192,12 @@ If your generic relation points to a model using a custom primary key, you need 
         def id(self):
             return self.cpk
 
-.. versionadded:: 2.3.4
+.. versionadded:: 2.3
     ``related_label``.
 
-For the representation of an object, we first check for a callable ``related_label``. If not given, ``__unicode__`` is being used::
+For the representation of an object, we first check for a callable ``related_label``. If not given, ``__unicode__`` is being used in Python 2.x or ``__str__`` in Python 3.x.
+
+Example in Python 2 ::
 
     def __unicode__(self):
         return u"%s" % self.name
@@ -163,14 +205,29 @@ For the representation of an object, we first check for a callable ``related_lab
     def related_label(self):
         return u"%s (%s)" % (self.name, self.id)
 
+Example in Python 3 ::
+
+    def __str__(self):
+        return "%s" % self.name
+    
+    def related_label(self):
+        return "%s (%s)" % (self.name, self.id)
+
+.. note::
+    In order to use related lookups, you need to register both ends (models) of the relationship with your ``admin.site``.
+
 .. _customizationautocompletelookups:
 
 Autocomplete Lookups
 --------------------
 
-.. versionchanged:: 2.3.5
+.. versionadded:: 2.4.7
+    staticmethod ``autocomplete_term_adjust`` for better search optimization.
+.. versionchanged:: 2.4.6
+    staticmethod ``autocomplete_search_fields`` is optional if ``GRAPPELLI_AUTOCOMPLETE_SEARCH_FIELDS`` is being used.
+.. versionchanged:: 2.3
     staticmethod ``autocomplete_search_fields`` is required, ``related_autocomplete_lookup`` has been removed.
-.. versionadded:: 2.3.4
+.. versionadded:: 2.3
     ``autocomplete_lookup_fields``.
 
 Autocomplete lookups are an alternative to related lookups (for foreign keys, many–to-many relations and generic relations).
@@ -183,6 +240,14 @@ Add the staticmethod ``autocomplete_search_fields`` to all models you want to se
         @staticmethod
         def autocomplete_search_fields():
             return ("id__iexact", "name__icontains",)
+
+If the staticmethod is not given, ``GRAPPELLI_AUTOCOMPLETE_SEARCH_FIELDS`` will be used if the app/model is defined::
+
+    GRAPPELLI_AUTOCOMPLETE_SEARCH_FIELDS = {
+        "myapp": {
+            "mymodel": ("id__iexact", "name__icontains",)
+        }
+    }
 
 Defining autocomplete lookups is very similar to related lookups::
 
@@ -230,13 +295,40 @@ If your generic relation points to a model using a custom primary key, you need 
         def id(self):
             return self.cpk
 
-For the representation of an object, we first check for a callable ``related_label``. If not given, ``__unicode__`` is being used::
+If the human-readable value of a field you are searching on is too large to be indexed (e.g. long text as SHA key) or is saved in a different format (e.g. date as integer timestamp), add a staticmethod ``autocomplete_term_adjust`` to the corresponding model with the appropriate transformation and perform the lookup on the indexed field::
+    
+    class MyModel(models.Model):
+        text = models.TextField(u"Long text")
+        text_hash = models.CharField(u"Text hash", max_length=40, unique=True)
+
+        @staticmethod
+        def autocomplete_term_adjust(term):
+            return hashlib.sha1(term).hexdigest()
+
+        @staticmethod
+        def autocomplete_search_fields():
+            return ("text_hash__iexact",)
+
+For the representation of an object, we first check for a callable ``related_label``. If not given, ``__unicode__`` is being usedin Python 2.x or ``__str__`` in Python 3.x.
+
+Example in Python 2 ::
 
     def __unicode__(self):
         return u"%s" % self.name
     
     def related_label(self):
         return u"%s (%s)" % (self.name, self.id)
+
+Example in Python 3 ::
+
+    def __str__(self):
+        return "%s" % self.name
+    
+    def related_label(self):
+        return "%s (%s)" % (self.name, self.id)
+
+.. note::
+    In order to use autocompletes, you need to register both ends (models) of the relationship with your ``admin.site``.
 
 .. _customizationtinymce:
 
@@ -246,7 +338,7 @@ Using TinyMCE
 .. versionchanged:: 2.4
     The admin media URLs has been changed to use static URLs in compliance with Django 1.4
 
-|grappelli| already comes with TinyMCE and a minimal theme as well. In order to use TinyMCE, copy ``tinymce_setup.js`` to your static directory, adjust the setup (see `TinyMCE Configuration <http://www.tinymce.com/wiki.php/Configuration>`_) and add the necessary javascripts to your ModelAdmin definition (see `ModelAdmin Media definitions <https://docs.djangoproject.com/en/1.4/ref/contrib/admin/#modeladmin-media-definitions>`_)::
+|grappelli| already comes with TinyMCE and a minimal theme as well. In order to use TinyMCE, copy ``tinymce_setup.js`` to your static directory, adjust the setup (see `TinyMCE Configuration <http://www.tinymce.com/wiki.php/Configuration>`_) and add the necessary javascripts to your ModelAdmin definition (see `ModelAdmin Media definitions <https://docs.djangoproject.com/en/1.5/ref/contrib/admin/#modeladmin-media-definitions>`_)::
 
     class Media:
         js = [
@@ -264,6 +356,9 @@ Using TinyMCE with inlines is a bit more tricky because of the hidden extra inli
     TinyMCE with inlines is not supported by default.
 
 If our version of TinyMCE does not fit your needs, add a different version to your static directory and change the above mentioned ModelAdmin setup (paths to js–files).
+
+.. warning::
+    TinyMCE will be removed with version 2.5 of |grappelli|, because TinyMCE version 4.x comes with a decent skin.
 
 .. _changelistfilters:
 
@@ -291,3 +386,16 @@ To use the alternative filters, you need to add ``change_list_filter_template`` 
 
     class MyModelOptions(admin.ModelAdmin):
         change_list_filter_template = "admin/filter_listing.html"
+
+
+.. _switchuser:
+
+Switch User
+-----------
+
+.. versionadded:: 2.4.8
+
+You sometimes might need to see the admin interface as a different user (e.g. in order to verify if permissions are set correctly or to follow an editors explanation). If you set ``GRAPPELLI_SWITCH_USER`` to ``True``, you'll get additional users with your user dropdown. Moreover, you can easily switch back to the original User.
+
+.. note::
+    This functionality might change with future releases.

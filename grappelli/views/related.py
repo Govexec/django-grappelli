@@ -2,6 +2,7 @@
 
 # PYTHON IMPORTS
 import operator
+from functools import reduce
 
 # DJANGO IMPORTS
 from django.http import HttpResponse
@@ -10,28 +11,32 @@ from django.db.models.query import QuerySet
 from django.views.decorators.cache import never_cache
 from django.views.generic import View
 from django.utils.translation import ungettext, ugettext as _
-from django.utils.encoding import smart_str
-import django.utils.simplejson as simplejson
+from django.utils.encoding import smart_bytes, smart_text
 from django.core.exceptions import PermissionDenied
+from django.contrib.admin.util import prepare_lookup_value
+
+# try to use json (2.6+) but stay compatible with 2.5.*
+try:
+    import json
+except ImportError:
+    from django.utils import simplejson as json
 
 # GRAPPELLI IMPORTS
-from grappelli.settings import AUTOCOMPLETE_LIMIT
+from grappelli.settings import AUTOCOMPLETE_LIMIT, AUTOCOMPLETE_SEARCH_FIELDS
 
 
 def get_label(f):
     if getattr(f, "related_label", None):
         return f.related_label()
-    return f.__unicode__()
+    return smart_text(f)
 
 
 def ajax_response(data):
-    return HttpResponse(simplejson.dumps(data), mimetype='application/javascript')
+    return HttpResponse(json.dumps(data), content_type='application/javascript')
 
 
 class RelatedLookup(View):
-    u"""
-    Related Lookup
-    """
+    "Related Lookup"
 
     def check_user_permission(self):
         if not (self.request.user.is_active and self.request.user.is_staff):
@@ -74,9 +79,7 @@ class RelatedLookup(View):
 
 
 class M2MLookup(RelatedLookup):
-    u"""
-    M2M Lookup
-    """
+    "M2M Lookup"
 
     def get_data(self):
         obj_ids = self.GET['object_id'].split(',')
@@ -91,9 +94,7 @@ class M2MLookup(RelatedLookup):
 
 
 class AutocompleteLookup(RelatedLookup):
-    u"""
-    AutocompleteLookup
-    """
+    "AutocompleteLookup"
 
     def request_is_valid(self):
         return 'term' in self.GET and 'app_label' in self.GET and 'model_name' in self.GET
@@ -106,19 +107,35 @@ class AutocompleteLookup(RelatedLookup):
             for item in query_string.split("&"):
                 k, v = item.split("=")
                 if k != "t":
-                    filters[smart_str(k)] = smart_str(v)
+                    filters[smart_bytes(k)] = prepare_lookup_value(smart_bytes(k), smart_bytes(v))
         return qs.filter(**filters)
 
     def get_searched_queryset(self, qs):
         model = self.model
         term = self.GET["term"]
 
-        for word in term.split():
-            search = [models.Q(**{smart_str(item): smart_str(word)}) for item in model.autocomplete_search_fields()]
-            search_qs = QuerySet(model)
-            search_qs.dup_select_related(qs)
-            search_qs = search_qs.filter(reduce(operator.or_, search))
-            qs &= search_qs
+        try:
+            term = model.autocomplete_term_adjust(term)
+        except AttributeError:
+            pass
+
+        try:
+            search_fields = model.autocomplete_search_fields()
+        except AttributeError:
+            try:
+                search_fields = AUTOCOMPLETE_SEARCH_FIELDS[model._meta.app_label][model._meta.module_name]
+            except KeyError:
+                search_fields = ()
+
+        if search_fields:
+            for word in term.split():
+                search = [models.Q(**{smart_text(item): smart_text(word)}) for item in search_fields]
+                search_qs = QuerySet(model)
+                search_qs.query.select_related = qs.query.select_related
+                search_qs = search_qs.filter(reduce(operator.or_, search))
+                qs &= search_qs
+        else:
+            qs = model.objects.none()
         return qs
 
     def get_queryset(self):

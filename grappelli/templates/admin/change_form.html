@@ -2,7 +2,7 @@
 
 <!-- LOADING -->
 {% load url from future %}
-{% load admin_static i18n admin_modify grp_tags %}
+{% load admin_static i18n admin_modify admin_urls grp_tags %}
 
 <!-- STYLESHEETS -->
 {% block stylesheets %}
@@ -80,16 +80,41 @@
                         $(this).parent(".grp-collapse").removeClass("grp-open").addClass("grp-closed");
                     });
                 });
+                // HACK: get rid of currently/change with URL–fields. F**K!!!
+                $('p.url').each(function() {
+                    $(this).find("a").remove();
+                    var text = $(this).html();
+                    text = text.replace(/^\w*: /, "");
+                    text = text.replace(/<br>.*: /, "");
+                    $(this).html(text);
+                });
+                // HACK: rearrange inlines
+                $('div.grp-group').each(function() {
+                    var placeholder = $("fieldset.placeholder."+$(this).attr("id"));
+                    $(placeholder).replaceWith($(this));
+                });
             });
         })(grp.jQuery);
     </script>
     {{ media }}
 {% endblock %}
 
+{% block extrahead %}
+    {{ block.super }}
+    {% if adminform and add %}
+    <script type="text/javascript">
+        (function($){
+            $(document).ready(function() {
+                $('form#{{ opts.module_name }}_form :input:visible:enabled:first').focus()
+            });
+        }(grp.jQuery));
+    </script>
+    {% endif %}
+{% endblock %}
+
 <!-- COLTYPE/BODYCLASS -->
 {% block bodyclass %}{{ opts.app_label }}-{{ opts.object_name.lower }} grp-change-form{% endblock %}
 {% block content-class %}{% endblock %}
-
 
 <!-- PAGE-TOOLS -->
 {% block page-tools %}
@@ -105,9 +130,9 @@
 {% block breadcrumbs %}
     {% if not is_popup %}
         <ul>
-            <li><a href="../../../">{% trans "Home" %}</a></li>
-            <li><a href="../../">{% trans app_label|capfirst|escape %}</a></li>
-            <li>{% if has_change_permission %}<a href="../">{{ opts.verbose_name_plural|capfirst }}</a>{% else %}{{ opts.verbose_name_plural|capfirst }}{% endif %}</li>
+            <li><a href="{% url 'admin:index' %}">{% trans "Home" %}</a></li>
+            <li><a href="{% url 'admin:app_list' app_label=opts.app_label %}">{% trans app_label|capfirst|escape %}</a></li>
+            <li>{% if has_change_permission %}<a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>{% else %}{{ opts.verbose_name_plural|capfirst }}{% endif %}</li>
             <li>{% if add %}{% trans "Add" %} {{ opts.verbose_name }}{% else %}{{ original|truncatewords:"18" }}{% endif %}</li>
         </ul>
     {% endif %}
@@ -133,6 +158,7 @@
         <div>
             <!-- Popup Hidden Field -->
             {% if is_popup %}<input type="hidden" name="_popup" value="1" />{% endif %}
+            {% if to_field %}<input type="hidden" name="{{ to_field_var }}" value="{{ to_field }}" />{% endif %}
             
             <!-- No Submit-Row on Top -->
 
@@ -162,23 +188,6 @@
             
             <!-- Submit-Row -->
             {% block submit_buttons_bottom %}{% submit_row %}{% endblock %}
-            
-            {% if adminform and add %}
-                {% block extrahead %}
-                    {{ block.super }}
-                    <script type="text/javascript">
-                        (function($){
-                            $(function(){
-                                try {
-                                    // focus on first form-field
-                                    $("#{{ adminform.first_field.auto_id }}, #{{ adminform.first_field.auto_id }}_0")
-                                    .eq(0).focus();
-                                } catch(e) {}
-                            });
-                        }(grp.jQuery));
-                    </script>
-                {% endblock %}
-            {% endif %}
             
             <!-- JS for prepopulated fields -->
             {% prepopulated_fields_js %}

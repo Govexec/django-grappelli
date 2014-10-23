@@ -35,12 +35,13 @@ var django = {
         $('p.datetime').each(function() {
             var text = $(this).html();
             text = text.replace(/^\w*: /, "");
-            text = text.replace(/<br>.*: /, "<br>");
+            text = text.replace(/<br>[^<]*: /g, "<br>");
             $(this).html(text);
         });
         
         var options = {
             //appendText: '(mm/dd/yyyy)',
+            constrainInput: false,
             showOn: 'button',
             buttonImageOnly: false,
             buttonText: '',
@@ -116,6 +117,7 @@ var django = {
     
     grappelli.reinitDateTimeFields = function(form) {
         form.find(".vDateField").datepicker({
+            constrainInput: false,
             showOn: 'button',
             buttonImageOnly: false,
             buttonText: '',

@@ -8,11 +8,98 @@
 Changelog
 =========
 
-2.4.5 (not yet released)
+2.4.12 (not yet released)
+-------------------------
+
+2.4.11 (October 17th 2014)
+--------------------------
+
+* Fixed: Tests with custom User model.
+
+2.4.10 (April 13th 2014)
 ------------------------
 
+* Fixed: change form extrahead js (focus first).
+* Fixed: floating properties of form in change-form.
+
+2.4.9 (February 20th, 2014)
+---------------------------
+
+* Fixed: Exception chain with autocompletes.
+* Fixed: Reindexing with inline sortables.
+* Fixed: Removed onclick_attribs in submit line.
+* Fixed: Fixed duplicate with search form.
+* Fixed: Link to django–smuggler with docs/thirdparty.
+* Improved: Added help_text for password1 with with user/change_password.html
+* Improved: TinyMCE dialog layout.
+
+2.4.8 (November 12th, 2013)
+---------------------------
+
+* New: Switch user.
+* New: Unit-Tests for switch user and related lookups resp. autocompletes.
+* Fixed: Removed safe from sidebar filters (changelist).
+* Fixed: Translated app_label with object_history.html.
+* Fixed: Renamed the 'mimetype' arg to 'content_type'.
+* Fixed: Removed dup_select_related with autocomplete lookups.
+* Fixed: Removed some hardcoded URLs.
+
+2.4.7 (October 16th, 2013)
+--------------------------
+
+* New: ``autocomplete_term_adjust`` function for alternative lookups with autocompletes.
+* New: Added block ``messages`` with base.html.
+* New: Added block ``admin_title`` that allows for greater customization of the main header title.
+* Fixed: Added support for ``needs_explicit_pk_field``.
+* Fixed: Preserved predelete class for inlines.
+* Fixed: Re–implemented visual distinction between FK–Autocompletes and M2M–Autocompletes.
+* Fixed: Removed comma from pagination separator.
+* Improved: Change encoding functions to new django 1.4/1.5 (smart_bytes, smart_text).
+* Improved: Only exposing the project models when the user is authenticated to tighten security.
+* Improved: Some Minor fixes with Python 3.
+* Improved: Fixed some typos with grp-doc and extended the template documentation.
+* Improved: Better inline delete icon.
+
+.. warning::
+	Grappelli 2.4.7 requires Django >= 1.4.2 because of the new string handling.
+
+2.4.6 (August 22nd, 2013)
+-------------------------
+
+* New: Rearrange inlines within the changeform (see :ref:`customizationrearrangeinlines`)
+* New: Setting AUTOCOMPLETE_SEARCH_FIELDS. Useful if you need to add autocompletes to a model you cannot alter.
+* New: Added compatibility with django–constance.
+* Fixed: Removed unicode literals (for building grappelli with Python 3.2 correctly).
+* Fixed: Added docs about registering both ends of a relationship with related lookups and autocompletes.
+* Fixed: Escape autocompletion terms before passing them on to the request.
+* Fixed: Deleted compress.by from admin folder.
+* Fixed: URLField with changelist.
+* Fixed: TinyMCE table layout.
+* Fixed: Removed the css–reference within TinyMCE paste plugin.
+* Fixed: Bug with TinyMCE plugin grappelli, when toolbar2 is not defined.
+* Improved: removed title–tag from inline verbose_name.
+
+2.4.5 (June 3rd, 2013)
+----------------------
+
+* New: Added templates for django-smuggler.
+* New: Added table-icons for TinyMCE.
+* Fixed: Simplejson deprecated in Django 1.5+.
+* Fixed: Docs referred to setting ``AUTOCOMPLETE_LIMIT`` instead of ``GRAPPELLI_AUTOCOMPLETE_LIMIT``.
+* Fixed: Fixed inconsistencies in the breadcrumb section of reversion templates.
+* Fixed: autocomplete lookup not parsing query_string properly.
+* Fixed: Deprecation warning with importing URLs.
+* Fixed: Removed content from dashboard module docstring.
+* Fixed: Generic lookup (related and autocompletes) when ``content_type`` is in ``radio_fields``.
+* Fixed: Related lookup button overlaps m2m raw id inputs.
+* Fixed: Formatting of read–only fields (including linebreaks).
+* Fixed: Removed restriction for datefields input.
+* Improved: Renamed js-function HideAddBottons to HideAddButtons.
+* Improved: Hide add button with inlines if no permissions are given.
+* Improved: Python 3 support.
+
 2.4.4 (February 22, 2013)
-------------------------
+-------------------------
 
 * New: Added Czech translation for TinyMCE.
 * Fixed: set correct case-sensitive dependency for Django in setup.py.
